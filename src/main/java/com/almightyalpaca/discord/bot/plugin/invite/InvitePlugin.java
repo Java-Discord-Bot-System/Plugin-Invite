@@ -9,10 +9,10 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Triple;
 
-import com.almightyalpaca.discord.bot.system.command.AbstractCommand;
-import com.almightyalpaca.discord.bot.system.command.annotation.Command;
+import com.almightyalpaca.discord.bot.system.command.Command;
+import com.almightyalpaca.discord.bot.system.command.CommandHandler;
 import com.almightyalpaca.discord.bot.system.command.arguments.special.Rest;
-import com.almightyalpaca.discord.bot.system.events.CommandEvent;
+import com.almightyalpaca.discord.bot.system.events.commands.CommandEvent;
 import com.almightyalpaca.discord.bot.system.events.manager.EventHandler;
 import com.almightyalpaca.discord.bot.system.exception.PluginLoadingException;
 import com.almightyalpaca.discord.bot.system.exception.PluginUnloadingException;
@@ -26,15 +26,15 @@ import net.dv8tion.jda.utils.InviteUtil;
 
 public class InvitePlugin extends Plugin {
 
-	class InviteCommand extends AbstractCommand {
+	class InviteCommand extends Command {
 
 		public InviteCommand() {
 			super("invite", "Invite me", "[invite]");
 		}
 
-		@Command(dm = false, guild = true, async = true)
+		@CommandHandler(dm = false, guild = true, async = true)
 		private void onCommand(final CommandEvent event, final Rest rest) {
-			final Triple<Integer, Integer, Integer> result = InvitePlugin.this.handleInvite(rest.getString());
+			final Triple<Integer, Integer, Integer> result = InvitePlugin.this.handleInvite(rest.getString(), 5, TimeUnit.SECONDS);
 			final MessageBuilder builder = new MessageBuilder();
 			if (result.getMiddle() == 0) {
 				if (result.getRight() == 0) {
@@ -50,17 +50,17 @@ public class InvitePlugin extends Plugin {
 		}
 	}
 
-	private static final PluginInfo	INFO			= new PluginInfo("com.almightyalpaca.discord.bot.plugin.invite", "1.0.0", "Almighty Alpaca", "Invite Plugin", "Invite me to any server.");
+	private static final PluginInfo INFO = new PluginInfo("com.almightyalpaca.discord.bot.plugin.invite", "1.0.0", "Almighty Alpaca", "Invite Plugin", "Invite me to any server.");
 
-	private static final Pattern	invitePattern	= Pattern.compile("\\bhttps://(?:www\\.)?discord(?:\\.gg|app\\.com/invite)/([a-zA-Z0-9-]+)\\b");
+	private static final Pattern invitePattern = Pattern.compile("\\bhttps://(?:www\\.)?discord(?:\\.gg|app\\.com/invite)/([a-zA-Z0-9-]+)\\b");
 
-	private static final Pattern	discordmePatter	= Pattern.compile("https?:\\/\\/(www\\.)?discord\\.me\\/([-a-zA-Z0-9-_]*)");
+	private static final Pattern discordmePatter = Pattern.compile("https?:\\/\\/(www\\.)?discord\\.me\\/([-a-zA-Z0-9-_]*)");
 
 	public InvitePlugin() {
 		super(InvitePlugin.INFO);
 	}
 
-	public Triple<Integer, Integer, Integer> handleInvite(String string) {
+	public Triple<Integer, Integer, Integer> handleInvite(String string, int timeout, TimeUnit timeUnit) {
 		int count = 0;
 		int alreadyIn = 0;
 		final Matcher discordmeMatcher = InvitePlugin.discordmePatter.matcher(string);
@@ -80,8 +80,8 @@ public class InvitePlugin extends Plugin {
 			final InviteUtil.Invite invite = InviteUtil.resolve(inviteMatcher.group(1));
 			if (invite != null) {
 				count++;
-				if (this.getBridge().getJDA().getGuildById(invite.getGuildId()) == null) {
-					InviteUtil.join(invite, this.getBridge().getJDA(), g -> {
+				if (this.getJDA().getGuildById(invite.getGuildId()) == null) {
+					InviteUtil.join(invite, this.getJDA(), g -> {
 						i.incrementAndGet();
 					});
 				} else {
@@ -90,9 +90,9 @@ public class InvitePlugin extends Plugin {
 			}
 		}
 
-		int sleepMax = 50;
+		long timeoutMillis = timeUnit.toMillis(timeout) / 100;
 
-		while (i.get() < count - alreadyIn && sleepMax-- >= 0) {
+		while (i.get() < count - alreadyIn && timeoutMillis-- >= 0) {
 			try {
 				TimeUnit.MILLISECONDS.sleep(100);
 			} catch (final InterruptedException e) {
@@ -112,7 +112,7 @@ public class InvitePlugin extends Plugin {
 	@EventHandler(async = true)
 	public void onPrivateMesageReceived(final PrivateMessageReceivedEvent event) {
 		if (event.getAuthor() != event.getJDA().getSelfInfo()) {
-			final Triple<Integer, Integer, Integer> result = this.handleInvite(event.getMessage().getRawContent());
+			final Triple<Integer, Integer, Integer> result = this.handleInvite(event.getMessage().getRawContent(), 5, TimeUnit.SECONDS);
 			if (result.getLeft() != 0) {
 				final MessageBuilder builder = new MessageBuilder();
 				if (result.getMiddle() == 0) {
