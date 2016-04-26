@@ -10,6 +10,7 @@ import com.almightyalpaca.discord.bot.system.plugins.Plugin;
 import com.almightyalpaca.discord.bot.system.plugins.PluginInfo;
 
 import net.dv8tion.jda.MessageBuilder;
+import net.dv8tion.jda.utils.ApplicationUtil;
 
 public class InvitePlugin extends Plugin {
 
@@ -23,7 +24,7 @@ public class InvitePlugin extends Plugin {
 		private void onCommand(final CommandEvent event) {
 			final MessageBuilder builder = new MessageBuilder();
 			builder.appendString("This bot uses OAuth. You can invite it usong the following link:").newLine();
-			builder.appendString("https://discordapp.com/oauth2/authorize?client_id=" + InvitePlugin.this.config.getString("appid") + "&scope=bot&permissions=-1");
+			builder.appendString("https://discordapp.com/oauth2/authorize?client_id=" + ApplicationUtil.getApplicationId(InvitePlugin.this.getJDA()) + "&scope=bot&permissions=-1");
 			builder.send(event.getChannel());
 		}
 	}
